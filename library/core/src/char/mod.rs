@@ -9,7 +9,7 @@
 //! [Unicode code point]: http://www.unicode.org/glossary/#code_point
 //!
 //! This module exists for technical reasons, the primary documentation for
-//! `char` is directly on [the `char` primitive type](../../std/primitive.char.html)
+//! `char` is directly on [the `char` primitive type](prim@char)
 //! itself.
 //!
 //! This module is the home of the iterator implementations for the iterators
