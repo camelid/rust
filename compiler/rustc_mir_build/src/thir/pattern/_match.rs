@@ -1,12 +1,16 @@
 //! Note: tests specific to this file can be found in:
-//!     - ui/pattern/usefulness
-//!     - ui/or-patterns
-//!     - ui/consts/const_in_pattern
-//!     - ui/rfc-2008-non-exhaustive
-//!     - ui/half-open-range-patterns
-//!     - probably many others
+//!
+//!   - `ui/pattern/usefulness`
+//!   - `ui/or-patterns`
+//!   - `ui/consts/const_in_pattern`
+//!   - `ui/rfc-2008-non-exhaustive`
+//!   - `ui/half-open-range-patterns`
+//!   - probably many others
+//!
 //! I (Nadrieril) prefer to put new tests in `ui/pattern/usefulness` unless there's a specific
-//! reason not to, for example if they depend on a particular feature like or_patterns.
+//! reason not to, for example if they depend on a particular feature like `or_patterns`.
+//!
+//! -----
 //!
 //! This file includes the logic for exhaustiveness and usefulness checking for
 //! pattern-matching. Specifically, given a list of patterns for a type, we can
