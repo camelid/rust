@@ -1,9 +1,10 @@
 use crate::clean::auto_trait::AutoTraitFinder;
 use crate::clean::blanket_impl::BlanketImplFinder;
 use crate::clean::{
-    inline, Clean, Crate, ExternalCrate, Generic, GenericArg, GenericArgs, ImportSource, Item,
-    ItemKind, Lifetime, MacroKind, Path, PathSegment, Primitive, PrimitiveType, ResolvedPath, Type,
-    TypeBinding, TypeKind,
+    inline, Attributes, Clean, Crate, ExternalCrate, FnDecl, FnRetTy, Generic, GenericArg,
+    GenericArgs, GenericBound, Generics, GetDefId, ImportSource, Item, ItemKind, Lifetime,
+    MacroKind, Path, PathSegment, Primitive, PrimitiveType, ResolvedPath, Type, TypeBinding,
+    TypeKind, WherePredicate,
 };
 use crate::core::DocContext;
 
@@ -533,4 +534,23 @@ crate fn has_doc_flag(attrs: ty::Attributes<'_>, flag: Symbol) -> bool {
         attr.has_name(sym::doc)
             && attr.meta_item_list().map_or(false, |l| rustc_attr::list_contains_name(&l, flag))
     })
+}
+
+/// Emit a warning if `doc(spotlight)` occurs in `attrs`.
+crate fn warn_on_doc_spotlight(cx: &DocContext<'_>, attrs: &Attributes) {
+    if let Some(spotlight_item) = attrs.get_doc_flags(sym::spotlight).first() {
+        let mut warn = cx
+            .sess()
+            .diagnostic()
+            .struct_warn("`doc(spotlight)` was renamed to `doc(notable_trait)`");
+        warn.set_span(spotlight_item.span);
+        warn.note("`doc(spotlight)` is now a no-op");
+        warn.span_suggestion_short(
+            spotlight_item.span,
+            "use `notable_trait` instead",
+            String::from("notable_trait"),
+            rustc_errors::Applicability::MachineApplicable,
+        );
+        warn.emit();
+    }
 }

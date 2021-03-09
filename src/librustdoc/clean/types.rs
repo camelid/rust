@@ -663,19 +663,31 @@ impl Attributes {
     }
 
     crate fn has_doc_flag(&self, flag: Symbol) -> bool {
+        !self.get_doc_flags(flag).is_empty()
+    }
+
+    crate fn get_doc_flags(&self, flag: Symbol) -> Vec<ast::MetaItem> {
         for attr in &self.other_attrs {
             if !attr.has_name(sym::doc) {
                 continue;
             }
 
             if let Some(items) = attr.meta_item_list() {
-                if items.iter().filter_map(|i| i.meta_item()).any(|it| it.has_name(flag)) {
-                    return true;
-                }
+                return items
+                    .into_iter()
+                    .filter_map(|it| {
+                        if let ast::NestedMetaItem::MetaItem(meta_item) = it {
+                            Some(meta_item)
+                        } else {
+                            None
+                        }
+                    })
+                    .filter(move |it| it.has_name(flag))
+                    .collect();
             }
         }
 
-        false
+        vec![]
     }
 
     crate fn from_ast(

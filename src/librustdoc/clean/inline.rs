@@ -15,7 +15,7 @@ use rustc_span::hygiene::MacroKind;
 use rustc_span::symbol::{kw, sym, Symbol};
 use rustc_span::Span;
 
-use crate::clean::{self, Attributes, GetDefId, ToSource, TypeKind};
+use crate::clean::{self, utils, Attributes, GetDefId, ToSource, TypeKind};
 use crate::core::DocContext;
 use crate::formats::item_type::ItemType;
 
