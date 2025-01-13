@@ -3,6 +3,8 @@
 // FIXME: Once the portability lint RFC is implemented (see tracking issue #41619),
 // switch to use those structures instead.
 
+pub mod simplify;
+
 use std::fmt::{self, Write};
 use std::{mem, ops};
 
@@ -13,6 +15,7 @@ use rustc_session::parse::ParseSess;
 use rustc_span::Span;
 use rustc_span::symbol::{Symbol, sym};
 
+use self::simplify::{SimplifyCfgCache, simplify_cfg};
 use crate::html::escape::Escape;
 
 #[cfg(test)]
@@ -221,12 +224,27 @@ impl Cfg {
         matches!(self, Cfg::Cfg(sym::target_feature, _))
     }
 
+    pub(crate) fn simplify(&self, cache: &mut SimplifyCfgCache) -> Option<Self> {
+        self.simplify_with(&Self::True, cache)
+    }
+
+    pub(crate) fn simplify_with(
+        &self,
+        assume: &Self,
+        cache: &mut SimplifyCfgCache,
+    ) -> Option<Self> {
+        let cfg = self.simplify_with_inner(assume)?;
+        let cfg = simplify_cfg(cfg, cache);
+        // FIXME: maybe even run simplify_with_inner again?
+        if cfg == Cfg::True { None } else { Some(cfg) }
+    }
+
     /// Attempt to simplify this cfg by assuming that `assume` is already known to be true, will
     /// return `None` if simplification managed to completely eliminate any requirements from this
     /// `Cfg`.
     ///
     /// See `tests::test_simplify_with` for examples.
-    pub(crate) fn simplify_with(&self, assume: &Self) -> Option<Self> {
+    fn simplify_with_inner(&self, assume: &Self) -> Option<Self> {
         if self == assume {
             None
         } else if let Cfg::All(a) = self {

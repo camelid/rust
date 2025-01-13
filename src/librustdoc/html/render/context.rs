@@ -15,7 +15,10 @@ use tracing::info;
 
 use super::print_item::{full_path, item_path, print_item};
 use super::sidebar::{ModuleLike, Sidebar, print_sidebar, sidebar_module_like};
-use super::{AllTypes, LinkFromSrc, StylePath, collect_spans_and_sources, scrape_examples_help};
+use super::{
+    AllTypes, LinkFromSrc, SimplifyCfgCache, StylePath, collect_spans_and_sources,
+    scrape_examples_help,
+};
 use crate::clean::types::ExternalLocation;
 use crate::clean::utils::has_doc_flag;
 use crate::clean::{self, ExternalCrate};
@@ -61,6 +64,8 @@ pub(crate) struct Context<'tcx> {
     pub(crate) shared: SharedContext<'tcx>,
     /// Collection of all types with notable traits referenced in the current module.
     pub(crate) types_with_notable_traits: RefCell<FxIndexSet<clean::Type>>,
+    /// Cache to speedup cfg simplification.
+    pub(crate) simplify_cfg_cache: RefCell<SimplifyCfgCache>,
     /// Contains information that needs to be saved and reset after rendering an item which is
     /// not a module.
     pub(crate) info: ContextInfo,
@@ -580,6 +585,7 @@ impl<'tcx> FormatRenderer<'tcx> for Context<'tcx> {
             deref_id_map: Default::default(),
             shared: scx,
             types_with_notable_traits: RefCell::new(FxIndexSet::default()),
+            simplify_cfg_cache: RefCell::new(SimplifyCfgCache::default()),
             info: ContextInfo::new(include_sources),
         };
 

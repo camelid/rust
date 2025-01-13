@@ -17,7 +17,7 @@ use tracing::{debug, info};
 
 use super::type_layout::document_type_layout;
 use super::{
-    AssocItemLink, AssocItemRender, Context, ImplRenderingParameters, RenderMode,
+    AssocItemLink, AssocItemRender, Context, ImplRenderingParameters, RenderMode, SimplifyCfgCache,
     collect_paths_for_type, document, ensure_trailing_slash, get_filtered_impls_for_reference,
     item_ty_to_section, notable_traits_button, notable_traits_json, render_all_impls,
     render_assoc_item, render_assoc_items, render_attributes_in_code, render_attributes_in_pre,
@@ -435,7 +435,14 @@ fn item_module(w: &mut Buffer, cx: &Context<'_>, item: &clean::Item, items: &[cl
 
             clean::ImportItem(ref import) => {
                 let stab_tags = import.source.did.map_or_else(String::new, |import_def_id| {
-                    extra_info_tags(tcx, myitem, item, Some(import_def_id)).to_string()
+                    extra_info_tags(
+                        tcx,
+                        myitem,
+                        item,
+                        Some(import_def_id),
+                        &mut cx.simplify_cfg_cache.borrow_mut(),
+                    )
+                    .to_string()
                 });
 
                 w.write_str(ITEM_TABLE_ROW_OPEN);
@@ -511,7 +518,13 @@ fn item_module(w: &mut Buffer, cx: &Context<'_>, item: &clean::Item, items: &[cl
                      {docs_before}{docs}{docs_after}",
                     name = EscapeBodyTextWithWbr(myitem.name.unwrap().as_str()),
                     visibility_and_hidden = visibility_and_hidden,
-                    stab_tags = extra_info_tags(tcx, myitem, item, None),
+                    stab_tags = extra_info_tags(
+                        tcx,
+                        myitem,
+                        item,
+                        None,
+                        &mut cx.simplify_cfg_cache.borrow_mut(),
+                    ),
                     class = myitem.type_(),
                     unsafety_flag = unsafety_flag,
                     href = item_path(myitem.type_(), myitem.name.unwrap().as_str()),
@@ -538,6 +551,7 @@ fn extra_info_tags<'a, 'tcx: 'a>(
     item: &'a clean::Item,
     parent: &'a clean::Item,
     import_def_id: Option<DefId>,
+    cfg_cache: &'a mut SimplifyCfgCache,
 ) -> impl fmt::Display + 'a + Captures<'tcx> {
     display_fn(move |f| {
         fn tag_html<'a>(
@@ -571,14 +585,14 @@ fn extra_info_tags<'a, 'tcx: 'a>(
         }
 
         let cfg = match (&item.cfg, parent.cfg.as_ref()) {
-            (Some(cfg), Some(parent_cfg)) => cfg.simplify_with(parent_cfg),
-            (cfg, _) => cfg.as_deref().cloned(),
+            (Some(cfg), Some(parent_cfg)) => cfg.simplify_with(parent_cfg, cfg_cache),
+            (cfg, _) => cfg.as_deref().and_then(|c| c.simplify(cfg_cache)),
         };
 
         debug!(
-            "Portability name={name:?} {cfg:?} - {parent_cfg:?} = {cfg:?}",
+            "Portability name={name:?} {item_cfg:?} - {parent_cfg:?} = {cfg:?}",
             name = item.name,
-            cfg = item.cfg,
+            item_cfg = item.cfg,
             parent_cfg = parent.cfg
         );
         if let Some(ref cfg) = cfg {

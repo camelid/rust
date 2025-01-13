@@ -474,22 +474,22 @@ fn test_simplify_with() {
         let bazquux = Cfg::All(vec![baz.clone(), quux.clone()]);
 
         // Unrelated cfgs don't affect each other
-        assert_eq!(foo.simplify_with(&bar).as_ref(), Some(&foo));
-        assert_eq!(foobar.simplify_with(&bazquux).as_ref(), Some(&foobar));
+        assert_eq!(foo.simplify_with_inner(&bar).as_ref(), Some(&foo));
+        assert_eq!(foobar.simplify_with_inner(&bazquux).as_ref(), Some(&foobar));
 
         // Identical cfgs are eliminated
-        assert_eq!(foo.simplify_with(&foo), None);
-        assert_eq!(foobar.simplify_with(&foobar), None);
+        assert_eq!(foo.simplify_with_inner(&foo), None);
+        assert_eq!(foobar.simplify_with_inner(&foobar), None);
 
         // Multiple cfgs eliminate a single assumed cfg
-        assert_eq!(foobar.simplify_with(&foo).as_ref(), Some(&bar));
-        assert_eq!(foobar.simplify_with(&bar).as_ref(), Some(&foo));
+        assert_eq!(foobar.simplify_with_inner(&foo).as_ref(), Some(&bar));
+        assert_eq!(foobar.simplify_with_inner(&bar).as_ref(), Some(&foo));
 
         // A single cfg is eliminated by multiple assumed cfg containing it
-        assert_eq!(foo.simplify_with(&foobar), None);
+        assert_eq!(foo.simplify_with_inner(&foobar), None);
 
         // Multiple cfgs eliminate the matching subset of multiple assumed cfg
-        assert_eq!(foobar.simplify_with(&barbaz).as_ref(), Some(&foo));
-        assert_eq!(foobar.simplify_with(&foobarbaz), None);
+        assert_eq!(foobar.simplify_with_inner(&barbaz).as_ref(), Some(&foo));
+        assert_eq!(foobar.simplify_with_inner(&foobarbaz), None);
     });
 }

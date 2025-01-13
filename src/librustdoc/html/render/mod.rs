@@ -62,6 +62,7 @@ use tracing::{debug, info};
 pub(crate) use self::context::*;
 pub(crate) use self::span_map::{LinkFromSrc, collect_spans_and_sources};
 pub(crate) use self::write_shared::*;
+use crate::clean::cfg::simplify::SimplifyCfgCache;
 use crate::clean::{self, ItemId, RenderedLink};
 use crate::error::Error;
 use crate::formats::Impl;
@@ -652,10 +653,14 @@ fn document_item_info(
     ItemInfo { items }
 }
 
-fn portability(item: &clean::Item, parent: Option<&clean::Item>) -> Option<String> {
+fn portability(
+    item: &clean::Item,
+    parent: Option<&clean::Item>,
+    cfg_cache: &mut SimplifyCfgCache,
+) -> Option<String> {
     let cfg = match (&item.cfg, parent.and_then(|p| p.cfg.as_ref())) {
-        (Some(cfg), Some(parent_cfg)) => cfg.simplify_with(parent_cfg),
-        (cfg, _) => cfg.as_deref().cloned(),
+        (Some(cfg), Some(parent_cfg)) => cfg.simplify_with(parent_cfg, cfg_cache),
+        (cfg, _) => cfg.as_deref().and_then(|c| c.simplify(cfg_cache)),
     };
 
     debug!(
@@ -740,7 +745,7 @@ fn short_item_info(
         extra_info.push(ShortItemInfo::Unstable { feature: feature.to_string(), tracking });
     }
 
-    if let Some(message) = portability(item, parent) {
+    if let Some(message) = portability(item, parent, &mut cx.simplify_cfg_cache.borrow_mut()) {
         extra_info.push(ShortItemInfo::Portability { message });
     }
 
@@ -2113,7 +2118,10 @@ pub(crate) fn render_impl_summary(
     w.write_str("</h3>");
 
     let is_trait = inner_impl.trait_.is_some();
-    if is_trait && let Some(portability) = portability(&i.impl_item, Some(parent)) {
+    if is_trait
+        && let Some(portability) =
+            portability(&i.impl_item, Some(parent), &mut cx.simplify_cfg_cache.borrow_mut())
+    {
         write!(
             w,
             "<span class=\"item-info\">\
