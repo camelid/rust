@@ -122,12 +122,6 @@ impl Path {
     pub fn is_global(&self) -> bool {
         !self.segments.is_empty() && self.segments[0].ident.name == kw::PathRoot
     }
-
-    /// Does this path have no arguments, and if allow_multi_segment is false, is it a single segment?
-    pub fn is_potential_trivial_const_arg(&self, allow_multi_segment: bool) -> bool {
-        (allow_multi_segment || self.segments.len() == 1)
-            && self.segments.iter().all(|seg| seg.args.is_none())
-    }
 }
 
 /// A segment of a path: an identifier, an optional lifetime, and a set of types.
@@ -1175,26 +1169,6 @@ pub struct Expr {
 }
 
 impl Expr {
-    // FIXME: update docs
-    /// Could this expr be either `N`, or `{ N }`, where `N` is a const parameter.
-    ///
-    /// If this is not the case, name resolution does not resolve `N` when using
-    /// `min_const_generics` as more complex expressions are not supported.
-    ///
-    /// Does not ensure that the path resolves to a const param, the caller should check this.
-    /// This also does not consider macros, so it's only correct after macro-expansion.
-    pub fn is_potential_trivial_const_arg(&self, allow_multi_segment: bool) -> bool {
-        let this = self.maybe_unwrap_block();
-
-        if let ExprKind::Path(None, path) = &this.kind
-            && path.is_potential_trivial_const_arg(allow_multi_segment)
-        {
-            true
-        } else {
-            false
-        }
-    }
-
     /// Returns an expression with (when possible) *one* outter brace removed
     pub fn maybe_unwrap_block(&self) -> &Expr {
         if let ExprKind::Block(block, None) = &self.kind
