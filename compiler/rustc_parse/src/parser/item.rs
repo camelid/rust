@@ -1013,7 +1013,8 @@ impl<'a> Parser<'a> {
                             define_opaque,
                         }) => {
                             self.dcx().emit_err(errors::AssociatedStaticItemNotAllowed { span });
-                            let body = expr.map(|e| Box::new(AnonConst { id: DUMMY_NODE_ID, value: e }));
+                            let body =
+                                expr.map(|e| Box::new(AnonConst { id: DUMMY_NODE_ID, value: e }));
                             AssocItemKind::Const(Box::new(ConstItem {
                                 defaultness: Defaultness::Final,
                                 ident,
@@ -1483,7 +1484,8 @@ impl<'a> Parser<'a> {
         let before_where_clause =
             if self.may_recover() { self.parse_where_clause()? } else { WhereClause::default() };
 
-        let body = if self.eat(exp!(Eq)) { Some(Box::new(self.parse_expr_anon_const()?)) } else { None };
+        let body =
+            if self.eat(exp!(Eq)) { Some(Box::new(self.parse_expr_anon_const()?)) } else { None };
 
         let after_where_clause = self.parse_where_clause()?;
 
