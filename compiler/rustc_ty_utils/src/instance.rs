@@ -1,6 +1,5 @@
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir::LangItem;
-use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::bug;
@@ -98,6 +97,7 @@ fn resolve_instance_raw<'tcx>(
 
         Ok(Some(Instance { def, args }))
     };
+
     if let Ok(Some(Instance { def: ty::InstanceKind::Item(def_id), args })) = result
         && matches!(tcx.def_kind(def_id), DefKind::Const | DefKind::AssocConst)
     {
@@ -116,6 +116,7 @@ fn resolve_instance_raw<'tcx>(
             }
         }
     }
+
     result
 }
 

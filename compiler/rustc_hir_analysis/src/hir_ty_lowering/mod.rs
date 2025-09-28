@@ -2328,15 +2328,27 @@ impl<'tcx> dyn HirTyLowerer<'tcx> + '_ {
         // generic arguments, just weaker type inference.
         let ty = tcx.type_of(anon.def_id).instantiate_identity();
 
-        match self.try_lower_anon_const_lit(ty, expr) {
-            Some(v) => v,
-            None => ty::Const::new_unevaluated(
+        let mk_uv = || {
+            ty::Const::new_unevaluated(
                 tcx,
                 ty::UnevaluatedConst {
                     def: anon.def_id.to_def_id(),
                     args: ty::GenericArgs::identity_for_item(tcx, anon.def_id.to_def_id()),
                 },
-            ),
+            )
+        };
+
+        // On stable we always lower the anon const on the rhs of const items
+        // to be an anon const.
+        if tcx.anon_const_kind(anon.def_id) == ty::AnonConstKind::ItemBody
+            && !tcx.features().min_generic_const_args()
+        {
+            return mk_uv();
+        }
+
+        match self.try_lower_anon_const_lit(ty, expr) {
+            Some(v) => v,
+            None => mk_uv(),
         }
     }
 

@@ -1084,7 +1084,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
             AssocItemConstraintKind::Equality { term } => {
                 let term = match term {
                     Term::Ty(ty) => self.lower_ty(ty, itctx).into(),
-                    Term::Const(c) => self.lower_anon_const_to_const_arg(c).into(),
+                    Term::Const(c) => self.lower_anon_const_to_const_arg(c, false).into(),
                 };
                 hir::AssocItemConstraintKind::Equality { term }
             }
@@ -1210,9 +1210,9 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 }
                 GenericArg::Type(self.lower_ty(ty, itctx).try_as_ambig_ty().unwrap())
             }
-            ast::GenericArg::Const(ct) => {
-                GenericArg::Const(self.lower_anon_const_to_const_arg(ct).try_as_ambig_ct().unwrap())
-            }
+            ast::GenericArg::Const(ct) => GenericArg::Const(
+                self.lower_anon_const_to_const_arg(ct, false).try_as_ambig_ct().unwrap(),
+            ),
         }
     }
 
@@ -2024,7 +2024,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                             false
                         }
                     })
-                    .map(|def| self.lower_anon_const_to_const_arg(def));
+                    .map(|def| self.lower_anon_const_to_const_arg(def, false));
 
                 (
                     hir::ParamName::Plain(self.lower_ident(param.ident)),
@@ -2236,7 +2236,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 let ct_kind = hir::ConstArgKind::Infer(self.lower_span(c.value.span), ());
                 self.arena.alloc(hir::ConstArg { hir_id: self.lower_node_id(c.id), kind: ct_kind })
             }
-            _ => self.lower_anon_const_to_const_arg(c),
+            _ => self.lower_anon_const_to_const_arg(c, false),
         }
     }
 
@@ -2305,12 +2305,21 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
 
     /// See [`hir::ConstArg`] for when to use this function vs
     /// [`Self::lower_anon_const_to_anon_const`].
-    fn lower_anon_const_to_const_arg(&mut self, anon: &AnonConst) -> &'hir hir::ConstArg<'hir> {
-        self.arena.alloc(self.lower_anon_const_to_const_arg_direct(anon))
+    fn lower_anon_const_to_const_arg(
+        &mut self,
+        anon: &AnonConst,
+        always_lower_to_anon_const: bool,
+    ) -> &'hir hir::ConstArg<'hir> {
+        self.arena
+            .alloc(self.lower_anon_const_to_const_arg_direct(anon, always_lower_to_anon_const))
     }
 
     #[instrument(level = "debug", skip(self))]
-    fn lower_anon_const_to_const_arg_direct(&mut self, anon: &AnonConst) -> hir::ConstArg<'hir> {
+    fn lower_anon_const_to_const_arg_direct(
+        &mut self,
+        anon: &AnonConst,
+        always_lower_to_anon_const: bool,
+    ) -> hir::ConstArg<'hir> {
         let tcx = self.tcx;
         // Unwrap a block, so that e.g. `{ P }` is recognised as a parameter. Const arguments
         // currently have to be wrapped in curly brackets, so it's necessary to special-case.
@@ -2329,6 +2338,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
             && path.is_potential_trivial_const_arg(tcx.features().min_generic_const_args())
             && (tcx.features().min_generic_const_args()
                 || matches!(maybe_res, Some(Res::Def(DefKind::ConstParam, _))))
+            && !always_lower_to_anon_const
         {
             let qpath = self.lower_qpath(
                 expr.id,

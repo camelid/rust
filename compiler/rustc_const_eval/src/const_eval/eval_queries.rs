@@ -352,8 +352,14 @@ pub fn eval_to_allocation_raw_provider<'tcx>(
     {
         let ct = tcx.const_of_item(def_id).instantiate(tcx, key.value.instance.args);
         match ct.kind() {
-            ty::ConstKind::Unevaluated(_) => {
-                return Err(ErrorHandled::TooGeneric(DUMMY_SP));
+            ty::ConstKind::Unevaluated(uv) => {
+                assert_eq!(tcx.def_kind(uv.def), DefKind::AnonConst);
+
+                let id = GlobalId {
+                    instance: ty::Instance { def: ty::InstanceKind::Item(uv.def), args: uv.args },
+                    promoted: None,
+                };
+                return eval_in_interpreter(tcx, id, key.typing_env);
             }
             ty::ConstKind::Value(cv) => return Ok(tcx.valtree_to_const_alloc(cv)),
             ty::ConstKind::Error(guar) => {
@@ -369,7 +375,7 @@ pub fn eval_to_allocation_raw_provider<'tcx>(
             ty::ConstKind::Infer(_) | ty::ConstKind::Bound(..) => {
                 bug!("unexpected constant {ct:?}")
             }
-        }
+        };
     }
 
     eval_in_interpreter(tcx, key.value, key.typing_env)
