@@ -201,10 +201,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     |this| {
                         let ty = this
                             .lower_ty(ty, ImplTraitContext::Disallowed(ImplTraitPosition::ConstTy));
-                        let body = this.lower_anon_const_to_const_arg(
-                            body.as_deref().unwrap(),
-                            !this.tcx.features().min_generic_const_args(),
-                        );
+                        let body = this.lower_item_body_to_const_arg(body.as_deref());
                         (ty, body)
                     },
                 );
@@ -815,12 +812,9 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     |this| {
                         let ty = this
                             .lower_ty(ty, ImplTraitContext::Disallowed(ImplTraitPosition::ConstTy));
-                        let body = body.as_deref().map(|body| {
-                            this.lower_anon_const_to_const_arg(
-                                body,
-                                !this.tcx.features().min_generic_const_args(),
-                            )
-                        });
+                        let body = body
+                            .as_deref()
+                            .map(|body| this.lower_item_body_to_const_arg(Some(body)));
                         hir::TraitItemKind::Const(ty, body)
                     },
                 );
@@ -1034,10 +1028,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         let ty = this
                             .lower_ty(ty, ImplTraitContext::Disallowed(ImplTraitPosition::ConstTy));
                         this.lower_define_opaque(hir_id, &define_opaque);
-                        let body = this.lower_anon_const_to_const_arg(
-                            body.as_deref().unwrap(),
-                            !this.tcx.features().min_generic_const_args(),
-                        );
+                        let body = this.lower_item_body_to_const_arg(body.as_deref());
                         hir::ImplItemKind::Const(ty, body)
                     },
                 ),

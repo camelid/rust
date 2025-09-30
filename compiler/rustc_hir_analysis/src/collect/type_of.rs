@@ -1,9 +1,9 @@
 use core::ops::ControlFlow;
 
 use rustc_errors::{Applicability, StashKey, Suggestions};
+use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::intravisit::VisitorExt;
-use rustc_hir::def::DefKind;
 use rustc_hir::{self as hir, AmbigArg, HirId};
 use rustc_middle::query::plumbing::CyclePlaceholder;
 use rustc_middle::ty::print::with_forced_trimmed_paths;
@@ -456,7 +456,6 @@ fn infer_placeholder_type<'tcx>(
     } else {
         tcx.typeck(def_id).node_type(hir_id)
     };
-
 
     // If this came from a free `const` or `static mut?` item,
     // then the user may have written e.g. `const A = 42;`.
