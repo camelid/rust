@@ -228,7 +228,8 @@ pub fn check_crate(tcx: TyCtxt<'_>) {
             }
             // FIXME(mgca): move this to `wfcheck`?
             DefKind::AnonConst
-                if tcx.anon_const_kind(item_def_id) == rustc_middle::ty::AnonConstKind::ItemBody
+                if tcx.anon_const_kind(item_def_id)
+                    == rustc_middle::ty::AnonConstKind::ItemBody
                     && tcx.def_kind(tcx.parent(item_def_id.to_def_id())) == DefKind::Const
                     && !tcx.generics_of(item_def_id).requires_monomorphization(tcx) =>
             {
