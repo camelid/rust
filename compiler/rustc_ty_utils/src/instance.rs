@@ -1,5 +1,6 @@
 use rustc_errors::ErrorGuaranteed;
 use rustc_hir::LangItem;
+use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_middle::bug;
@@ -98,21 +99,23 @@ fn resolve_instance_raw<'tcx>(
         Ok(Some(Instance { def, args }))
     };
 
-    if let Ok(Some(Instance { def: ty::InstanceKind::Item(def_id), args })) = result
-        && matches!(tcx.def_kind(def_id), DefKind::Const | DefKind::AssocConst)
-    {
-        debug!(" => resolved to const item");
-        let ct = tcx.const_of_item(def_id).instantiate(tcx, args);
-        debug!("ct={ct:?}");
-        if let ty::ConstKind::Unevaluated(uv) = ct.kind() {
-            if tcx.def_kind(uv.def) == DefKind::AnonConst {
-                return Ok(Some(ty::Instance {
-                    def: ty::InstanceKind::Item(uv.def),
-                    args: uv.args,
-                }));
-            } else {
-                let input = PseudoCanonicalInput { typing_env, value: (uv.def, uv.args) };
-                return tcx.resolve_instance_raw(input);
+    if tcx.features().min_generic_const_args() {
+        if let Ok(Some(Instance { def: ty::InstanceKind::Item(def_id), args })) = result
+            && matches!(tcx.def_kind(def_id), DefKind::Const | DefKind::AssocConst)
+        {
+            debug!(" => resolved to const item");
+            let ct = tcx.const_of_item(def_id).instantiate(tcx, args);
+            debug!("ct={ct:?}");
+            if let ty::ConstKind::Unevaluated(uv) = ct.kind() {
+                if tcx.def_kind(uv.def) == DefKind::AnonConst {
+                    return Ok(Some(ty::Instance {
+                        def: ty::InstanceKind::Item(uv.def),
+                        args: uv.args,
+                    }));
+                } else {
+                    let input = PseudoCanonicalInput { typing_env, value: (uv.def, uv.args) };
+                    return tcx.resolve_instance_raw(input);
+                }
             }
         }
     }

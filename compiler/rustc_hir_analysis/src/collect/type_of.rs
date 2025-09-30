@@ -3,6 +3,7 @@ use core::ops::ControlFlow;
 use rustc_errors::{Applicability, StashKey, Suggestions};
 use rustc_hir::def_id::{DefId, LocalDefId};
 use rustc_hir::intravisit::VisitorExt;
+use rustc_hir::def::DefKind;
 use rustc_hir::{self as hir, AmbigArg, HirId};
 use rustc_middle::query::plumbing::CyclePlaceholder;
 use rustc_middle::ty::print::with_forced_trimmed_paths;
@@ -437,7 +438,25 @@ fn infer_placeholder_type<'tcx>(
     kind: &'static str,
 ) -> Ty<'tcx> {
     let tcx = cx.tcx();
-    let ty = tcx.typeck(def_id).node_type(hir_id);
+
+    let ty = if let DefKind::Const | DefKind::AssocConst = tcx.def_kind(def_id) {
+        // TODO: diagnostics are bad because fetching `const_of_item` cycles
+        let rhs = tcx.const_of_item(def_id).instantiate_identity();
+        match rhs.kind() {
+            ty::ConstKind::Unevaluated(uv) => {
+                let const_body = uv.def.expect_local();
+                // FIXME(mgca): wrong
+                assert!(tcx.anon_const_kind(const_body) == ty::AnonConstKind::ItemBody);
+
+                tcx.typeck(const_body).node_type(tcx.local_def_id_to_hir_id(const_body))
+            }
+            ty::ConstKind::Error(e) => return Ty::new_error(tcx, e),
+            _ => bug!("unexpected rhs of const item"),
+        }
+    } else {
+        tcx.typeck(def_id).node_type(hir_id)
+    };
+
 
     // If this came from a free `const` or `static mut?` item,
     // then the user may have written e.g. `const A = 42;`.
