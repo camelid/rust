@@ -118,7 +118,16 @@ fn typeck_with_inspect<'tcx>(
 
     let id = tcx.local_def_id_to_hir_id(def_id);
     let node = tcx.hir_node(id);
-    let span = tcx.def_span(def_id);
+
+    // TODO: yikes
+    let (def_id_diagnostics, span) = if tcx.def_kind(def_id) == DefKind::AnonConst
+        && tcx.anon_const_kind(def_id) == ty::AnonConstKind::ItemBody
+    {
+        let const_item = tcx.parent(def_id.to_def_id());
+        (const_item.expect_local(), tcx.def_span(const_item))
+    } else {
+        (def_id, tcx.def_span(def_id))
+    };
 
     // Figure out what primary body this item has.
     let body_id = node.body_id().unwrap_or_else(|| {
@@ -198,7 +207,7 @@ fn typeck_with_inspect<'tcx>(
 
         let expected_type = fcx.normalize(body.value.span, expected_type);
 
-        let wf_code = ObligationCauseCode::WellFormed(Some(WellFormedLoc::Ty(def_id)));
+        let wf_code = ObligationCauseCode::WellFormed(Some(WellFormedLoc::Ty(def_id_diagnostics)));
         fcx.register_wf_obligation(expected_type.into(), body.value.span, wf_code);
 
         fcx.check_expr_coercible_to_type(body.value, expected_type, None);
