@@ -367,16 +367,27 @@ where
         // check performed after the promotion. Verify that with an assertion.
         assert!(promoted.is_none() || Q::ALLOW_PROMOTED);
 
-        // Const items don't themselves have bodies -- they will have either a path or an anon const instead.
-        // FIXME(mgca): is this really the right behavior? should we return the qualifs of the anon const body instead?
-        //              (note also that original code ignored trait assoc items)
-        if promoted.is_none()
-            && !matches!(cx.tcx.def_kind(def), DefKind::Const | DefKind::AssocConst)
-        {
-            let qualifs = cx.tcx.at(constant.span).mir_const_qualif(def);
+        if promoted.is_none() && cx.tcx.trait_of_assoc(def).is_none() {
+            // If we want the qualifs of a const item, fudge the def to be for the
+            // const's body instead.
+            let def_kind = cx.tcx.def_kind(def);
+            let fudged_def = if let DefKind::Const | DefKind::AssocConst = def_kind {
+                let const_body = cx.tcx.const_of_item(def).instantiate_identity();
+                match const_body.kind() {
+                    ty::ConstKind::Unevaluated(uv) => Some(uv.def),
+                    ty::ConstKind::Error(_) => None,
+                    _ => bug!("unexpected non anon const const body"),
+                }
+            } else {
+                Some(def)
+            };
 
-            if !Q::in_qualifs(&qualifs) {
-                return false;
+            if let Some(fudged_def) = fudged_def {
+                let qualifs = cx.tcx.at(constant.span).mir_const_qualif(fudged_def);
+
+                if !Q::in_qualifs(&qualifs) {
+                    return false;
+                }
             }
 
             // Just in case the type is more specific than
